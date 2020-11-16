@@ -1,0 +1,3 @@
+[submodule "modules/stubborn"]
+	path = modules/stubborn
+	url = git@github.com:rluba/stubborn.git
