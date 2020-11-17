@@ -84,23 +84,19 @@ get_out :: (using inst: Inst) -> u32 {
 }
 
 set_opcode :: (using inst: *Inst, opcode: InstOp) {
-	// @Cleanup: Why don’t we just set the appropriate bits here?
-	out_opcode = (get_out(<<inst) << 4) |  cast(u32)((cast(u32)get_last(<<inst)) << 3) | cast(u32)opcode;
+	out_opcode = out_opcode & 0xFFFF_FFF8 | cast(u32)opcode;
 }
 
 set_last :: (using inst: *Inst) {
-	// @Cleanup: Why don’t we just set the appropriate bit here?
-	out_opcode = (get_out(<<inst) << 4) |  (1 << 3) | cast(u32)get_opcode(<<inst);
+	out_opcode = out_opcode & 0xFFFF_FFF7 | cast(u32)(1 << 3);
 }
 
 set_out :: (using inst: *Inst, out: int) {
-	// @Cleanup: Why don’t we just set the appropriate bits here?
-	out_opcode = cast(u32)(out << 4) |  cast(u32)((cast(u32)get_last(<<inst)) << 3) | cast(u32)get_opcode(<<inst);
+	out_opcode = out_opcode & 0x0F | cast(u32)(out << 4);
 }
 
 set_out_opcode :: (using inst: *Inst, out: int, opcode: InstOp) {
-	// @Cleanup: Why don’t we just set the appropriate bits here?
-	out_opcode = cast(u32)(out << 4) |  cast(u32)((cast(u32)get_last(<<inst)) << 3) | cast(u32)opcode;
+	out_opcode = out_opcode & 0x08 | cast(u32)(out << 4) | cast(u32)opcode;
 }
 
 
