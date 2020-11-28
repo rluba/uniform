@@ -88,10 +88,10 @@ rune_from_string :: (str: string) -> Rune, len: int {
 	return Runeerror, 0;
 }
 
-bytes_from_rune :: (rune: Rune) -> [Runemax] u8, len: int {
+bytes_from_rune :: (rune: Rune) -> [UTFmax] u8, len: int {
 	/* Runes are signed, so convert to unsigned for range check. */
 	c := cast(u32)rune;
-	result: [Runemax] u8;
+	result: [UTFmax] u8;
 
 	/*
 	 * one character sequence
