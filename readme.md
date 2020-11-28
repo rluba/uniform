@@ -1,9 +1,5 @@
 # Uniform – a fully-featured regular expression library for Jai
 
-**Currently partially broken due to a compiler(?) bug! (as of beta 033)**
-Any character range that includes characters with different utf-8 lengths
- (e.g.,`[a-ö]`, most negations like `[^a]`) causes a segfault during regexp compilation.
-
 This library is a partial port of [RE2](https://github.com/google/re2).
 As such, it offers "fast" expression matching of the full PRCE syntax (except backreferences)
 but is _not exponential in the length of the input text_.
