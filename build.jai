@@ -20,9 +20,6 @@
 	}
 }
 
-DOCKER_JAI_PATH :: "/home/jai/jai";
-HOST_JAI_PATH :: "/Users/raphael/Projekte/jai/jai";
-
 build :: (filename: string, output_type := Build_Output_Type.EXECUTABLE, executable := "") {
     build_options := get_build_options();
     build_options.output_type = .NO_OUTPUT;
@@ -44,26 +41,9 @@ build :: (filename: string, output_type := Build_Output_Type.EXECUTABLE, executa
 
     add_build_file(filename, w);
 
-	ctags: CTags;
-	ctags.base_path = get_working_directory();
-	ctags.transform_path = (ctags: *CTags, path: string) -> string {
-		// Transform in-docker paths to host paths
-		if begins_with(path, DOCKER_JAI_PATH) {
-			result := sprint("%1%2", HOST_JAI_PATH, slice(path, DOCKER_JAI_PATH.count, path.count - DOCKER_JAI_PATH.count));
-			array_add(*ctags.strings, result);
-			return result;
-		}
-		return path;
-	};
-	defer reset(*ctags);
-
 	while true {
 		message := compiler_wait_for_message();
 		if !message continue;
-
-		if message.workspace == w {
-			process_message(*ctags, message);
-		}
 
 		if message.kind == .COMPLETE break;
 	}
@@ -75,6 +55,5 @@ build :: (filename: string, output_type := Build_Output_Type.EXECUTABLE, executa
 
 #import "Basic";
 #import "Compiler";
-#import "ctags";
 #import "String";
 
