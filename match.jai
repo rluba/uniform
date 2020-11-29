@@ -72,7 +72,7 @@ match :: (text: string, re: Regexp, re_anchor_in: Anchor) -> matched: bool, capt
 			submatches[0].data -= re.prefix.count;
 			submatches[0].count += re.prefix.count;
 		} else {
-			submatches[0] = re.prefix;
+			submatches[0] = slice(text, 0, re.prefix.count);
 		}
 	}
 
