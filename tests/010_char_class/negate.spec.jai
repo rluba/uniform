@@ -1,5 +1,6 @@
 converts_a_full_range_into_an_empty_one :: () {
 	char_class: CharClass;
+	defer uninit(*char_class);
 	add_range(*char_class, 0, Runemax);
 
 	negate(*char_class);
@@ -9,6 +10,7 @@ converts_a_full_range_into_an_empty_one :: () {
 
 converts_an_empty_range_into_a_full_one :: () {
 	char_class: CharClass;
+	defer uninit(*char_class);
 
 	negate(*char_class);
 
@@ -56,6 +58,7 @@ converts_a_partial_range_into_the_rest_params :: Simple_Range_Test_Args.[
 
 converts_a_partial_range_into_the_rest :: (args: Simple_Range_Test_Args) {
 	char_class: CharClass;
+	defer uninit(*char_class);
 	add_range(*char_class, args.input.lo, args.input.hi);
 
 	negate(*char_class);
@@ -67,6 +70,7 @@ converts_a_partial_range_into_the_rest :: (args: Simple_Range_Test_Args) {
 
 converts_all_ranges_correctly :: () {
 	char_class: CharClass;
+	defer uninit(*char_class);
 	add_range(*char_class, 100, 150);
 	add_range(*char_class, 160, 170);
 

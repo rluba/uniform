@@ -1,5 +1,6 @@
 inserts_the_new_range_at_the_right_position_1 :: () {
 	char_class: CharClass;
+	defer uninit(*char_class);
 	add_range(*char_class, 0, 1);
 	add_range(*char_class, 6, 10);
 	add_range(*char_class, 3, 4);
@@ -12,6 +13,7 @@ inserts_the_new_range_at_the_right_position_1 :: () {
 
 merges_ranges_correctly :: () {
 	char_class: CharClass;
+	defer uninit(*char_class);
 	add_range(*char_class, 0, 1);
 	add_range(*char_class, 6, 10);
 	add_range(*char_class, 3, 4);
@@ -26,6 +28,7 @@ merges_ranges_correctly :: () {
 
 merges_ranges_correctly_2 :: () {
 	char_class: CharClass;
+	defer uninit(*char_class);
 	add_range(*char_class, 0, 1);
 	add_range(*char_class, 6, 10);
 	add_range(*char_class, 3, 4);
@@ -40,6 +43,7 @@ merges_ranges_correctly_2 :: () {
 
 merges_ranges_correctly_3 :: () {
 	char_class: CharClass;
+	defer uninit(*char_class);
 	add_range(*char_class, 0, 1);
 	add_range(*char_class, 6, 10);
 	add_range(*char_class, 3, 4);
@@ -53,6 +57,7 @@ merges_ranges_correctly_3 :: () {
 
 merges_ranges_correctly_4 :: () {
 	char_class: CharClass;
+	defer uninit(*char_class);
 	add_range(*char_class, 6, 10);
 	add_range(*char_class, 3, 4);
 	add_range(*char_class, 0, 1);
@@ -66,6 +71,7 @@ merges_ranges_correctly_4 :: () {
 
 merges_ranges_correctly_5 :: () {
 	char_class: CharClass;
+	defer uninit(*char_class);
 	add_range(*char_class, 6, 10);
 	add_range(*char_class, 3, 4);
 	add_range(*char_class, 0, 1);
