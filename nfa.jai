@@ -11,6 +11,7 @@ match_nfa :: (prog: *Prog, text: string, ctx: string, ctx_offset: int, anchor_in
 	pool: Pool;
 	defer release(*pool);
 	set_allocators(*pool);
+	#if REGEXP_DEBUG	pool.overwrite_memory = true;
 
 	new_context := context;
 	new_context.allocator = pool_allocator;

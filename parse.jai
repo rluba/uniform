@@ -119,6 +119,7 @@ Regexp_Pool :: struct {
 
 init :: (pool: *Regexp_Pool) {
 	set_allocators(*pool.pool);
+	#if REGEXP_DEBUG	pool.pool.overwrite_memory = true;
 	pool.bucket.allocator = pool_allocator;
 	pool.bucket.allocator_data = *pool.pool;
 }
