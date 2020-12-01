@@ -9,7 +9,6 @@
 		test_args.data += 1;
 		test_args.count -= 1;
 
-		// @ToDo @CompilerBug Running the tests at compile time trips up the compiler (as of beta 036). Set run = false to avoid that.
 		build_tests("tests", #string END
 			#load "module.jai";
 			// #load "char_class.jai";
