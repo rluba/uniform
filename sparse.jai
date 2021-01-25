@@ -31,9 +31,8 @@ contains :: (using set: Sparse_Set, i: int) -> bool {
 	return sparse[i] < count && dense[sparse[i]] == i;
 }
 
-for_expansion :: (set: *Sparse_Set, body: Code, pointer: bool, reverse: bool) #expand {
-	assert(!reverse, "reverse is not yet supported");
-	assert(!pointer, "pointer is not yet supported");
+for_expansion :: (set: *Sparse_Set, body: Code, flags: For_Flags) #expand {
+	assert(!flags, "reverse/pointer are not yet supported");
 	i := 0;
 	while i < set.count {
 		`it := set.dense[i];
@@ -93,9 +92,8 @@ get :: (using array: Sparse_Array($T), i: int) -> T {
 	return dense[sparse[i]].value;
 }
 
-for_expansion :: (array: *$T/Sparse_Array, body: Code, pointer: bool, reverse: bool) #expand {
-	assert(!reverse, "reverse is not yet supported");
-	assert(!pointer, "pointer is not yet supported");
+for_expansion :: (array: *$T/Sparse_Array, body: Code, flags: For_Flags) #expand {
+	assert(!flags, "reverse/pointer are not yet supported");
 	i := 0;
 	while i < array.count {
 		`it := array.dense[i];
