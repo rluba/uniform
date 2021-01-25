@@ -544,41 +544,17 @@ find_next_set_bit :: (using set: Bit_Array, start: int) -> s16 {
 	// Mask out everything below start
 	word := slots[i] & (0xFFFF_FFFF_FFFF_FFFF << (start & 63));
 	if word {
-		return cast(u8)((i << 6) + find_lsb_set(word));
+		return cast(u8)((i << 6) + bit_scan_forward(word) - 1);
 	}
 
 	i += 1;
 	while i < slots.count {
 		if slots[i]	{
-			return cast(u8)((i << 6) + find_lsb_set(slots[i]));
+			return cast(u8)((i << 6) + bit_scan_forward(slots[i]) - 1);
 		}
 		i += 1;
 	}
 	return -1;
-}
-
-find_lsb_set :: inline (word: int) -> u8 {
-	// @ToDo @Speed: Use intrinsic or assembler (bsf) instead!
-	assert(word != 0);
-	value := word;
-	i32 := (cast(int)!(value & 0xffffffff)) << 5;
-    value = value >> i32;
-
-	i16 := (cast(int)!(value & 0xffff)) << 4;
-    value = value >> i16;
-
-	i8 := (cast(int)!(value & 0xff)) << 3;
-	value = value >> i8;
-
-	i4 := (cast(int)!(value & 0xf)) << 2;
-	value = value >> i4;
-
-	i2 := (cast(int)!(value & 0x3)) << 1;
-    value = value >> i2;
-
-	i1 := (cast(int)!(value & 0x1));
-
-    return cast(u8)(i32 + i16 + i8 + i4 + i2 + i1);
 }
 
 merge :: (using builder: *ByteMapBuilder) {
