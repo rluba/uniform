@@ -10,12 +10,8 @@ Anchor :: enum {
 
 REGEXP_DEBUG :: false;
 
-log :: (mode: Log_Mode, format: string, args: .. Any) {
-	logprint("regexp", mode, format, .. args);
-}
-
 report_error :: (format: string, args: .. Any) {
-    log(Log_Mode.MINIMAL, format, .. args);
+    log(format, .. args);
 }
 
 // @ToDo: Move to a common utility module
