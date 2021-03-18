@@ -1,7 +1,7 @@
 MAX_ONE_PASS_CAPTURES :: 5;
 
 // You need to free the captures array, but not its contents (which just references the input text)
-match :: (text: string, pattern: string, anchor: Anchor) -> matched: bool, captures: [] string {
+match :: (text: string, pattern: string, anchor: Anchor = .UNANCHORED) -> matched: bool, captures: [] string {
 	regexp, success := compile(pattern);
 	if !success {
 		return false, .[];
@@ -13,7 +13,7 @@ match :: (text: string, pattern: string, anchor: Anchor) -> matched: bool, captu
 }
 
 // You need to free the captures array, but not its contents (which just references the input text)
-match :: (text: string, re: Regexp, re_anchor_in: Anchor) -> matched: bool, captures: [] string {
+match :: (text: string, re: Regexp, re_anchor_in: Anchor = .UNANCHORED) -> matched: bool, captures: [] string {
 	num_captures := 1 + re.num_capture_groups;
 
 	re_anchor := re_anchor_in;
