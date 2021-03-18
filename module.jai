@@ -1,7 +1,7 @@
 Anchor :: enum {
-	Unanchored;         // No anchoring
-	Anchor_Start;       // Anchor at start only
-	Anchor_Both;        // Anchor at start and end
+	UNANCHORED;         // No anchoring
+	ANCHOR_START;       // Anchor at start only
+	ANCHOR_BOTH; // Anchor at start and end
 }
 
 // See comile.jai and match.jai for details

@@ -146,8 +146,8 @@ is_word_char :: (c: u8) -> bool {
 Prog :: struct {
 	// Whether to anchor the search.
 	Anchor :: enum {
-		kUnanchored;  // match anywhere
-		kAnchored;    // match only starting at beginning of text
+		UNANCHORED;  // match anywhere
+		ANCHORED;    // match only starting at beginning of text
 	}
 
 	// Kind of match to look for (for anchor != kFullMatch)
@@ -165,7 +165,7 @@ Prog :: struct {
 	MatchKind :: enum {
 		kFirstMatch;     // like Perl, PCRE
 		kLongestMatch;   // like egrep or POSIX
-		kFullMatch;      // match only entire text; implies anchor==kAnchored
+		kFullMatch;      // match only entire text; implies anchor==ANCHORED
 		kManyMatch;      // for SearchDFA, records set of matches
 	};
 

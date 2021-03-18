@@ -30,14 +30,14 @@ match_nfa :: (prog: *Prog, text: string, ctx: string, ctx_offset: int, anchor_in
 		nfa.start = prog.start;
 		anchor := anchor_in;
 		if kind == .kFullMatch {
-			anchor = .kAnchored;
+			anchor = .ANCHORED;
 		}
 
 		if nfa.start == 0	return false, matches;
 		if prog.anchor_start && ctx.count != text.count		return false, matches;
 		if prog.anchor_end && ctx.count != ctx_offset + text.count	return false, matches;
 
-		anchored := (anchor == .kAnchored) || prog.anchor_start;
+		anchored := (anchor == .ANCHORED) || prog.anchor_start;
 		nfa.longest = (kind != .kFirstMatch);
 		nfa.endmatch = false;
 		if prog.anchor_end {

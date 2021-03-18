@@ -189,7 +189,7 @@ compile :: (re: *Regexp_Node, pool: *Regexp_Pool, reversed := false, max_mem := 
 			}
 			c.max_ninst = m;
 		}
-		c.anchor = .Unanchored;
+		c.anchor = .UNANCHORED;
 
 		// Simplify to remove things like counted repetitions
 		// and character classes like \d.
@@ -811,7 +811,7 @@ compiler_post_visit :: (using comp: *Compiler, re: *Regexp_Node, parent_arg: Fra
 
 		case .HaveMatch;
 			f := match(comp, re.match_id);
-			if anchor == .Anchor_Both {
+			if anchor == .ANCHOR_BOTH {
 				// Append \z or else the subexpression will effectively be unanchored.
 				// Complemented by the Unanchored case in CompileSet().
 				f = cat(comp, empty_width(comp, .kEmptyEndText), f);

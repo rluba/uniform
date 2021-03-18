@@ -18,9 +18,9 @@ match :: (text: string, re: Regexp, re_anchor_in: Anchor) -> matched: bool, capt
 
 	re_anchor := re_anchor_in;
 	if re.prog.anchor_start && re.prog.anchor_end {
-		re_anchor = .Anchor_Both;
-	} else if re.prog.anchor_start && re_anchor != .Anchor_Both {
-		re_anchor = .Anchor_Start;
+		re_anchor = .ANCHOR_BOTH;
+	} else if re.prog.anchor_start && re_anchor != .ANCHOR_BOTH {
+		re_anchor = .ANCHOR_START;
 	}
 
 	subtext := text;
@@ -38,12 +38,12 @@ match :: (text: string, re: Regexp, re_anchor_in: Anchor) -> matched: bool, capt
 		subtext = slice(subtext, re.prefix.count, subtext.count - re.prefix.count);
 
 		// If there is a required prefix, the anchor must be at least Anchor_Start.
-		if re_anchor != .Anchor_Both {
-			re_anchor = .Anchor_Start;
+		if re_anchor != .ANCHOR_BOTH {
+			re_anchor = .ANCHOR_START;
 		}
 	}
 
-	anchor := Prog.Anchor.kUnanchored;
+	anchor := Prog.Anchor.UNANCHORED;
 	kind := Prog.MatchKind.kFirstMatch;
 
 	// @ToDo: For one-pass NFA
@@ -51,14 +51,14 @@ match :: (text: string, re: Regexp, re_anchor_in: Anchor) -> matched: bool, capt
 	// can_bit_state := can_bit_state(prog);
 
 	if #complete re_anchor == {
-		case .Unanchored;
+		case .UNANCHORED;
 			//	@ToDo: Implement!
-		case .Anchor_Both; #through;
-		case .Anchor_Start;
-			if re_anchor == .Anchor_Both {
+		case .ANCHOR_BOTH; #through;
+		case .ANCHOR_START;
+			if re_anchor == .ANCHOR_BOTH {
 				kind = .kFullMatch;
 			}
-			anchor = .kAnchored;
+			anchor = .ANCHORED;
 			// @ToDo: Implement fast-passes
 	}
 
