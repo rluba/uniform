@@ -114,14 +114,16 @@ RegexpOp :: enum {
 
 Regexp_Pool :: struct {
 	pool: Pool;
+	allocator: Allocator;
 	bucket: Bucket_Array(Regexp_Node, 64);
 }
 
 init :: (pool: *Regexp_Pool) {
 	set_allocators(*pool.pool);
 	#if REGEXP_DEBUG	pool.pool.overwrite_memory = true;
-	pool.bucket.allocator = pool_allocator;
-	pool.bucket.allocator_data = *pool.pool;
+	pool.allocator.proc = pool_allocator_proc;
+	pool.allocator.data = *pool.pool;
+	pool.bucket.allocator = pool.allocator;
 }
 
 uninit :: (pool: *Regexp_Pool) {
@@ -301,8 +303,7 @@ required_prefix :: (re: *Regexp_Node, pool: *Regexp_Pool) -> prefix: string, fol
 		runes = to_analyze.runes;
 	}
 	new_context := context;
-	new_context.allocator = pool_allocator;
-	new_context.allocator_data = *pool.pool;
+	new_context.allocator = pool.allocator;
 	push_context new_context {
 		prefix := string_from_runes(runes);
 		return prefix, (to_analyze.parse_flags & .FoldCase) != 0, suffix;
@@ -472,8 +473,7 @@ parse :: (s: string, global_flags: ParseFlags = .NoParseFlags) -> *Regexp_Node, 
 	init(*ps.pool);
 
 	new_context := context;
-	new_context.allocator = pool_allocator;
-	new_context.allocator_data = *ps.pool;
+	new_context.allocator = ps.pool.allocator;
 
 	push_context new_context {
 		lastunary: string;
@@ -1020,7 +1020,7 @@ to_string :: (re: *Regexp_Node) -> string {
 	}
 
 	append_literal :: (builder: *String_Builder, r: Rune, foldcase: bool) {
-		if r != 0 && r < 0x80 && index_of_char("(){}[]*+?|.^$\\", cast(u8)r) != -1 {
+		if r != 0 && r < 0x80 && find_index_from_left("(){}[]*+?|.^$\\", cast(u8)r) != -1 {
 			append(builder, #char "\\");
 			append(builder, cast(u8)r);
 		} else if (foldcase && #char "a" <= r && r <= #char "z") {
@@ -1046,7 +1046,7 @@ to_string :: (re: *Regexp_Node) -> string {
 	// Appends a rune for use in a character class to the string t.
 	append_cc_char :: (builder: *String_Builder, r: Rune) {
 		if 0x20 <= r && r <= 0x7E {
-			if index_of_char("[]^-\\", cast(u8)r) != -1 {
+			if find_index_from_left("[]^-\\", cast(u8)r) != -1 {
 				append(builder, "\\");
 			}
 			append(builder, cast(u8)r);
@@ -2511,8 +2511,8 @@ maybe_parse_unicode_group :: (s: *string, parse_flags: ParseFlags, cc: *CharClas
 		name = slice(seq, 2, len);
 	} else {
 		// Name is in braces. Look for closing }
-		end, found := index_of_char(<<s, #char "}");
-		if !found {
+		end := find_index_from_left(<<s, #char "}");
+		if end != -1 {
 			valid: bool;
 			valid, status = is_valid_utf8(seq);
 			if !valid		return status, .kParseError;
@@ -2579,7 +2579,7 @@ parse_cc_name :: (s: *string, parse_flags: ParseFlags, cc: *CharClass) -> status
 	if s.count < 2	|| (<<s)[0] != #char "[" || (<<s)[1] != #char ":"		return Status.{}, .kParseNothing;
 
 	// Look for closing :].
-	end := index_of_string(<<s, ":]");
+	end := find_index_from_left(<<s, ":]");
 
 	// If no closing :], then ignore.
 	if !end		return Status.{}, .kParseNothing;
@@ -2789,18 +2789,17 @@ parse_perl_flags :: (using ps: *ParseState, s: *string) -> Status, success: bool
 	if (t.count > 2 && t[0] == #char "P" && t[1] == #char "<") {
 		advance(*t, 2);
 		// Pull out name.
-		end, found := index_of_char(t, #char ">");
-		if !found {
+		end := find_index_from_left(t, #char ">");
+		if end == -1 {
 			valid: bool;
 			valid, status = is_valid_utf8(<<s);
 			if !valid		return status, false;
-
 			return make_status(.BadNamedCapture, <<s), false;
 		}
 
 		// t is "P<name>...", t[end] == '>'
 		capture := slice(<<s, 0, end + 3);
-		name := slice(t, 2, end - 2);
+		name := slice(t, 0, end);
 		valid, status := is_valid_utf8(name);
 		if !valid		return status, false;
 

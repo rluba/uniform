@@ -1140,6 +1140,7 @@ to_string_unflattened :: (using prog: Prog) -> string {
 
 #import "Bit_Array";
 #import "IntroSort";
+#import "Bit_Operations";
 
 // @ToDo: Use assembler replacement for memchr instead, once jai supports it
 index_of_char_2 :: (str: string, char: u8, start := 0) -> int, found:bool {

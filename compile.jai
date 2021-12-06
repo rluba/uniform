@@ -147,8 +147,9 @@ Compiler :: struct {
 // The reversed flag is also recorded in the returned program.
 compile :: (re: *Regexp_Node, pool: *Regexp_Pool, reversed := false, max_mem := 0) -> *Prog {
 	new_context := context;
-	new_context.allocator = pool_allocator;
-	new_context.allocator_data = pool;
+
+	// FIXME: For some reason, uncommenting this line causes everything to crash
+	//new_context.allocator = pool.allocator;
 
 	push_context new_context {
 		// Init compiler
