@@ -146,98 +146,94 @@ Compiler :: struct {
 // to run over the input string backward (reverses all concatenations).
 // The reversed flag is also recorded in the returned program.
 compile :: (re: *Regexp_Node, pool: *Regexp_Pool, reversed := false, max_mem := 0) -> *Prog {
-	new_context := context;
-	new_context.allocator = pool_allocator;
-	new_context.allocator_data = pool;
 
-	push_context new_context {
-		// Init compiler
-		c: Compiler;
-		c.pool = pool;
+	push_allocator(pool_allocator_proc, pool.pool);
+	// Init compiler
+	c: Compiler;
+	c.pool = pool;
 
-		c.prog = New(Prog);
-		c.reversed = reversed;
+	c.prog = New(Prog);
+	c.reversed = reversed;
 
-		array_reserve(*c.inst, 8);
+	array_reserve(*c.inst, 8);
 
-		inst: Inst;
-		set_opcode(*inst, .kInstFail);
-		array_add(*c.inst, inst);
+	inst: Inst;
+	set_opcode(*inst, .kInstFail);
+	array_add(*c.inst, inst);
 
-		c.max_mem = max_mem;
-		if max_mem <= 0 {
-			c.max_ninst = 100000;  // more than enough
-		} else if (max_mem <= size_of(Prog)) {
-			// No room for anything.
-			c.max_ninst = 0;
-		} else {
-			m := (max_mem - size_of(Prog)) / size_of(Inst);
-			// Limit instruction count so that inst->id() fits nicely in an int.
-			// SparseArray also assumes that the indices (inst->id()) are ints.
-			// The call to WalkExponential uses 2*max_ninst_ below,
-			// and other places in the code use 2 or 3 * prog->size().
-			// Limiting to 2^24 should avoid overflow in those places.
-			// (The point of allowing more than 32 bits of memory is to
-			// have plenty of room for the DFA states, not to use it up
-			// on the program.)
-			if (m >= 1<<24) {
-				m = 1<<24;
-			}
-			// Inst imposes its own limit (currently bigger than 2^24 but be safe).
-			if (m > Inst.MAX_INST) {
-				m = Inst.MAX_INST;
-			}
-			c.max_ninst = m;
+	c.max_mem = max_mem;
+	if max_mem <= 0 {
+		c.max_ninst = 100000;  // more than enough
+	} else if (max_mem <= size_of(Prog)) {
+		// No room for anything.
+		c.max_ninst = 0;
+	} else {
+		m := (max_mem - size_of(Prog)) / size_of(Inst);
+		// Limit instruction count so that inst->id() fits nicely in an int.
+		// SparseArray also assumes that the indices (inst->id()) are ints.
+		// The call to WalkExponential uses 2*max_ninst_ below,
+		// and other places in the code use 2 or 3 * prog->size().
+		// Limiting to 2^24 should avoid overflow in those places.
+		// (The point of allowing more than 32 bits of memory is to
+		// have plenty of room for the DFA states, not to use it up
+		// on the program.)
+		if (m >= 1<<24) {
+			m = 1<<24;
 		}
-		c.anchor = .UNANCHORED;
-
-		// Simplify to remove things like counted repetitions
-		// and character classes like \d.
-		sre := simplify(re, pool);
-		if sre == null		return null;
-		#if REGEXP_DEBUG	print("Simplified: \"%\" -> \"%\"\n", to_string(re), to_string(sre));
-
-		// Record whether prog is anchored, removing the anchors.
-		// (They get in the way of other optimizations.)
-		anchor_start: bool;
-		anchor_end: bool;
-		sre, anchor_start = is_anchor_start(sre, pool, 0);
-		sre, anchor_end = is_anchor_end(sre, pool, 0);
-
-		// Generate fragment for entire regexp.
-		w := Walk(*Compiler, Frag).{pre_visit = compiler_pre_visit, post_visit = compiler_post_visit, short_visit = compiler_short_visit, copy = null};
-		// @ToDO @Cleanup This is a workaround for nulls not being respected in struct literals yet.
-		// Remove once the struct literal bug is fixed in jai
-		w.copy = null;
-		w.max_visits = 2 * c.max_ninst;
-		all := walk(*c, sre, Frag.{}, w);
-		if c.failed		return null;
-
-		// Success!  Finish by putting Match node at end, and record start.
-		// Turn off c.reversed (if it is set) to force the remaining concatenations
-		// to behave normally.
-		c.reversed = false;
-		all = cat(*c, all, match(*c, 0));
-
-		c.prog.reversed = reversed;
-		if (c.prog.reversed) {
-			c.prog.anchor_start = anchor_end;
-			c.prog.anchor_end = anchor_start;
-		} else {
-			c.prog.anchor_start = anchor_start;
-			c.prog.anchor_end = anchor_end;
+		// Inst imposes its own limit (currently bigger than 2^24 but be safe).
+		if (m > Inst.MAX_INST) {
+			m = Inst.MAX_INST;
 		}
-
-		c.prog.start = all.begin;
-		if (!c.prog.anchor_start) {
-			// Also create unanchored version, which starts with a .*? loop.
-			all = cat(*c, dot_star(*c), all);
-		}
-		c.prog.start_unanchored = all.begin;
-
-		// Hand ownership of prog to caller.
-		return finish(*c, re);
+		c.max_ninst = m;
 	}
+	c.anchor = .UNANCHORED;
+
+	// Simplify to remove things like counted repetitions
+	// and character classes like \d.
+	sre := simplify(re, pool);
+	if sre == null		return null;
+	#if REGEXP_DEBUG	print("Simplified: \"%\" -> \"%\"\n", to_string(re), to_string(sre));
+
+	// Record whether prog is anchored, removing the anchors.
+	// (They get in the way of other optimizations.)
+	anchor_start: bool;
+	anchor_end: bool;
+	sre, anchor_start = is_anchor_start(sre, pool, 0);
+	sre, anchor_end = is_anchor_end(sre, pool, 0);
+
+	// Generate fragment for entire regexp.
+	w := Walk(*Compiler, Frag).{pre_visit = compiler_pre_visit, post_visit = compiler_post_visit, short_visit = compiler_short_visit, copy = null};
+	// @ToDO @Cleanup This is a workaround for nulls not being respected in struct literals yet.
+	// Remove once the struct literal bug is fixed in jai
+	w.copy = null;
+	w.max_visits = 2 * c.max_ninst;
+	all := walk(*c, sre, Frag.{}, w);
+	if c.failed		return null;
+
+	// Success!  Finish by putting Match node at end, and record start.
+	// Turn off c.reversed (if it is set) to force the remaining concatenations
+	// to behave normally.
+	c.reversed = false;
+	all = cat(*c, all, match(*c, 0));
+
+	c.prog.reversed = reversed;
+	if (c.prog.reversed) {
+		c.prog.anchor_start = anchor_end;
+		c.prog.anchor_end = anchor_start;
+	} else {
+		c.prog.anchor_start = anchor_start;
+		c.prog.anchor_end = anchor_end;
+	}
+
+	c.prog.start = all.begin;
+	if (!c.prog.anchor_start) {
+		// Also create unanchored version, which starts with a .*? loop.
+		all = cat(*c, dot_star(*c), all);
+	}
+	c.prog.start_unanchored = all.begin;
+
+	// Hand ownership of prog to caller.
+	return finish(*c, re);
 }
 
 to_string :: (using comp: Compiler) -> string {

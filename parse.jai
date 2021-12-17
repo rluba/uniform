@@ -113,19 +113,21 @@ RegexpOp :: enum {
 };
 
 Regexp_Pool :: struct {
-	pool: Pool;
+	pool: *Pool;
 	bucket: Bucket_Array(Regexp_Node, 64);
 }
 
 init :: (pool: *Regexp_Pool) {
-	set_allocators(*pool.pool);
+	pool.pool = New(Pool);
+	set_allocators(pool.pool);
 	#if REGEXP_DEBUG	pool.pool.overwrite_memory = true;
-	pool.bucket.allocator = pool_allocator;
-	pool.bucket.allocator_data = *pool.pool;
+	pool.bucket.allocator.proc = pool_allocator_proc;
+	pool.bucket.allocator.data = pool.pool;
 }
 
 uninit :: (pool: *Regexp_Pool) {
-	release(*pool.pool);
+	release(pool.pool);
+	free(pool.pool);
 }
 
 #scope_module
@@ -300,10 +302,9 @@ required_prefix :: (re: *Regexp_Node, pool: *Regexp_Pool) -> prefix: string, fol
 	} else {
 		runes = to_analyze.runes;
 	}
-	new_context := context;
-	new_context.allocator = pool_allocator;
-	new_context.allocator_data = *pool.pool;
-	push_context new_context {
+
+	{
+		push_allocator(pool_allocator_proc, pool.pool);
 		prefix := string_from_runes(runes);
 		return prefix, (to_analyze.parse_flags & .FoldCase) != 0, suffix;
 	}
@@ -470,188 +471,183 @@ parse :: (s: string, global_flags: ParseFlags = .NoParseFlags) -> *Regexp_Node, 
 	ps.flags = global_flags;
 
 	init(*ps.pool);
+	push_allocator(pool_allocator_proc, ps.pool.pool);
 
-	new_context := context;
-	new_context.allocator = pool_allocator;
-	new_context.allocator_data = *ps.pool;
+	lastunary: string;
+	t := s;
+	while t.count {
+		isunary: string;
+		if t[0] == {
+			case; {
+				r, len, status := consume_rune(*t);
+				if !len		return null, status, ps.pool;
+				push_literal(*ps, r);
+			}
 
-	push_context new_context {
-		lastunary: string;
-		t := s;
-		while t.count {
-			isunary: string;
-			if t[0] == {
-				case; {
-					r, len, status := consume_rune(*t);
-					if !len		return null, status, ps.pool;
-					push_literal(*ps, r);
+			case #char "(";
+				// "(?" introduces Perl escape.
+				if ps.flags & .PerlX && t.count >= 2 && t[1] == #char "?" {
+					// Flag changes and non-capturing groups.
+					success: bool;
+					ps.status, success = parse_perl_flags(*ps, *t);
+					if !success		return null, ps.status, ps.pool;
+				} else if ps.flags & .NeverCapture {
+					do_left_paren_no_capture(*ps);
+					advance(*t); // '('
+				} else {
+					do_left_paren(*ps);
+					advance(*t); // '('
 				}
 
-				case #char "(";
-					// "(?" introduces Perl escape.
-					if ps.flags & .PerlX && t.count >= 2 && t[1] == #char "?" {
-						// Flag changes and non-capturing groups.
-						success: bool;
-						ps.status, success = parse_perl_flags(*ps, *t);
-						if !success		return null, ps.status, ps.pool;
-					} else if ps.flags & .NeverCapture {
-						do_left_paren_no_capture(*ps);
-						advance(*t); // '('
-					} else {
-						do_left_paren(*ps);
-						advance(*t); // '('
-					}
+			case #char "|";
+				do_vertical_bar(*ps);
+				advance(*t);  // '|'
 
-				case #char "|";
-					do_vertical_bar(*ps);
-					advance(*t);  // '|'
+			case #char ")";
+				if !do_right_paren(*ps)		return null, ps.status, ps.pool;
+				advance(*t);  // ')'
 
-				case #char ")";
-					if !do_right_paren(*ps)		return null, ps.status, ps.pool;
-					advance(*t);  // ')'
+			case #char "^";  // Beginning of line.
+				push_caret(*ps);
+				advance(*t);  // '^'
 
-				case #char "^";  // Beginning of line.
-					push_caret(*ps);
-					advance(*t);  // '^'
+			case #char "$";  // End of line.
+				push_dollar(*ps);
+				advance(*t);  // '$'
 
-				case #char "$";  // End of line.
-					push_dollar(*ps);
-					advance(*t);  // '$'
+			case #char ".";  // Any character (possibly except newline).
+				push_dot(*ps);
+				advance(*t);  // '.'
 
-				case #char ".";  // Any character (possibly except newline).
-					push_dot(*ps);
-					advance(*t);  // '.'
+			case #char "[";   // Character class.
+				re, status, success := parse_char_class(*ps, *t);
+				if !success					return null, status, ps.pool;
+				push_regexp(*ps, re);
 
-				case #char "[";   // Character class.
-					re, status, success := parse_char_class(*ps, *t);
-					if !success					return null, status, ps.pool;
-					push_regexp(*ps, re);
+			case #char "*";  // Zero or more.
+				success: bool;
+				isunary, success = rep(*ps, .Star, *t, lastunary);
+				if !success		return null, ps.status, ps.pool;
+			case #char "+";  // One or more.
+				success: bool;
+				isunary, success = rep(*ps, .Plus, *t, lastunary);
+				if !success		return null, ps.status, ps.pool;
+			case #char "?";  // Zero or one.
+				success: bool;
+				isunary, success = rep(*ps, .Quest, *t, lastunary);
+				if !success		return null, ps.status, ps.pool;
 
-				case #char "*";  // Zero or more.
-					success: bool;
-					isunary, success = rep(*ps, .Star, *t, lastunary);
-					if !success		return null, ps.status, ps.pool;
-				case #char "+";  // One or more.
-					success: bool;
-					isunary, success = rep(*ps, .Plus, *t, lastunary);
-					if !success		return null, ps.status, ps.pool;
-				case #char "?";  // Zero or one.
-					success: bool;
-					isunary, success = rep(*ps, .Quest, *t, lastunary);
-					if !success		return null, ps.status, ps.pool;
-
-				case #char "{";   // Counted repetition.
-					opstr := t;
-					lo, hi, success := maybe_parse_repetition(*t);
-					if !success {
-						// Treat like a literal.
-						push_literal(*ps, #char "{");
-						advance(*t);  // '{'
-					} else {
-						nongreedy := false;
-						if ps.flags & .PerlX {
-							if t && t[0] == #char "?" {
-								nongreedy = true;
-								advance(*t);  // '?'
-							}
-							if lastunary {
-								// Not allowed to stack repetition operators.
-								ps.status.code = .RepeatOp;
-								ps.status.error_arg = slice(lastunary, 0, t.data - lastunary.data);
-								return null, ps.status, ps.pool;
-							}
+			case #char "{";   // Counted repetition.
+				opstr := t;
+				lo, hi, success := maybe_parse_repetition(*t);
+				if !success {
+					// Treat like a literal.
+					push_literal(*ps, #char "{");
+					advance(*t);  // '{'
+				} else {
+					nongreedy := false;
+					if ps.flags & .PerlX {
+						if t && t[0] == #char "?" {
+							nongreedy = true;
+							advance(*t);  // '?'
 						}
-						opstr.count -= t.count;
-						if !push_repetition(*ps, lo, hi, opstr, nongreedy) {
+						if lastunary {
+							// Not allowed to stack repetition operators.
+							ps.status.code = .RepeatOp;
+							ps.status.error_arg = slice(lastunary, 0, t.data - lastunary.data);
 							return null, ps.status, ps.pool;
 						}
-						isunary = opstr;
 					}
+					opstr.count -= t.count;
+					if !push_repetition(*ps, lo, hi, opstr, nongreedy) {
+						return null, ps.status, ps.pool;
+					}
+					isunary = opstr;
+				}
 
-				case #char "\\";    // Escaped character or Perl sequence.
-									// \b and \B: word boundary or not
-					parsed := false;
-					if ps.flags & .PerlB &&
-							t.count >= 2 && (t[1] == #char "b" || t[1] == #char "B") {
-						if t[1] == #char "b" {
-							push_simple_op(*ps, .WordBoundary);
-						} else {
-							push_simple_op(*ps, .NoWordBoundary);
-						}
-						advance(*t, 2);  // '\\', 'b'
+			case #char "\\";    // Escaped character or Perl sequence.
+								// \b and \B: word boundary or not
+				parsed := false;
+				if ps.flags & .PerlB &&
+						t.count >= 2 && (t[1] == #char "b" || t[1] == #char "B") {
+					if t[1] == #char "b" {
+						push_simple_op(*ps, .WordBoundary);
+					} else {
+						push_simple_op(*ps, .NoWordBoundary);
+					}
+					advance(*t, 2);  // '\\', 'b'
+					parsed = true;
+				} else if (ps.flags & .PerlX) && t.count >= 2 {
+					if (t[1] == #char "A") {
+						push_simple_op(*ps, .BeginText);
+						advance(*t, 2);  // '\\', 'A'
 						parsed = true;
-					} else if (ps.flags & .PerlX) && t.count >= 2 {
-						if (t[1] == #char "A") {
-							push_simple_op(*ps, .BeginText);
-							advance(*t, 2);  // '\\', 'A'
-							parsed = true;
-						} else if (t[1] == #char "z") {
-							push_simple_op(*ps, .EndText);
-							advance(*t, 2);  // '\\', 'z'
-							parsed = true;
-							// Do not recognize \Z, because this library can't
-							// implement the exact Perl/PCRE semantics.
-							// (This library treats "(?-m)$" as \z, even though
-							// in Perl and PCRE it is equivalent to \Z.)
-						} else if (t[1] == #char "C") {  // \C: any byte [sic]
-							push_simple_op(*ps, .AnyByte);
-							advance(*t, 2);  // '\\', 'C'
-							parsed = true;
-						} else if (t[1] == #char "Q") {  // \Q ... \E: the ... is always literals
-							advance(*t, 2);  // '\\', 'Q'
-							while t.count {
-								if (t.count >= 2 && t[0] == #char "\\" && t[1] == #char "E") {
-									advance(*t, 2);  // '\\', 'E'
-									parsed = true;
-								}
-								r, len, status := consume_rune(*t);
-								if !len		return null, status, ps.pool;
-								push_literal(*ps, r);
+					} else if (t[1] == #char "z") {
+						push_simple_op(*ps, .EndText);
+						advance(*t, 2);  // '\\', 'z'
+						parsed = true;
+						// Do not recognize \Z, because this library can't
+						// implement the exact Perl/PCRE semantics.
+						// (This library treats "(?-m)$" as \z, even though
+						// in Perl and PCRE it is equivalent to \Z.)
+					} else if (t[1] == #char "C") {  // \C: any byte [sic]
+						push_simple_op(*ps, .AnyByte);
+						advance(*t, 2);  // '\\', 'C'
+						parsed = true;
+					} else if (t[1] == #char "Q") {  // \Q ... \E: the ... is always literals
+						advance(*t, 2);  // '\\', 'Q'
+						while t.count {
+							if (t.count >= 2 && t[0] == #char "\\" && t[1] == #char "E") {
+								advance(*t, 2);  // '\\', 'E'
+								parsed = true;
 							}
-							parsed = true;
+							r, len, status := consume_rune(*t);
+							if !len		return null, status, ps.pool;
+							push_literal(*ps, r);
 						}
+						parsed = true;
 					}
+				}
 
-					if (!parsed && t.count >= 2 && (t[1] == #char "p" || t[1] == #char "P")) {
+				if (!parsed && t.count >= 2 && (t[1] == #char "p" || t[1] == #char "P")) {
+					re := new_regexp(*ps.pool, .CharClass, ps.flags & ~.FoldCase);
+					re.char_class = New(CharClass);
+					re.char_class_finished = false;
+					parseStatus, parseResult := maybe_parse_unicode_group(*t, ps.flags, re.char_class);
+					if parseResult == {
+						case .kParseOk;
+							push_regexp(*ps, re);
+							lastunary = isunary;
+							parsed = true;
+						case .kParseError;
+							remove_regexp(*ps.pool, re);
+							ps.status = parseStatus;
+							return null, ps.status, ps.pool;
+						case .kParseNothing;
+							remove_regexp(*ps.pool, re);
+					}
+				}
+
+				if !parsed {
+					g := maybe_parse_perl_cc_escape(*t, ps.flags);
+					if g != null {
 						re := new_regexp(*ps.pool, .CharClass, ps.flags & ~.FoldCase);
 						re.char_class = New(CharClass);
 						re.char_class_finished = false;
-						parseStatus, parseResult := maybe_parse_unicode_group(*t, ps.flags, re.char_class);
-						if parseResult == {
-							case .kParseOk;
-								push_regexp(*ps, re);
-								lastunary = isunary;
-								parsed = true;
-							case .kParseError;
-								remove_regexp(*ps.pool, re);
-								ps.status = parseStatus;
-								return null, ps.status, ps.pool;
-							case .kParseNothing;
-								remove_regexp(*ps.pool, re);
-						}
+						add_unicode_group(re.char_class, g, g.sign, ps.flags);
+						push_regexp(*ps, re);
+						parsed = true;
 					}
+				}
 
-					if !parsed {
-						g := maybe_parse_perl_cc_escape(*t, ps.flags);
-						if g != null {
-							re := new_regexp(*ps.pool, .CharClass, ps.flags & ~.FoldCase);
-							re.char_class = New(CharClass);
-							re.char_class_finished = false;
-							add_unicode_group(re.char_class, g, g.sign, ps.flags);
-							push_regexp(*ps, re);
-							parsed = true;
-						}
-					}
-
-					if !parsed {
-						r, status, success := parse_escape(*t, ps.rune_max);
-						if !success		return null, status, ps.pool;
-						push_literal(*ps, r);
-					}
-			}
+				if !parsed {
+					r, status, success := parse_escape(*t, ps.rune_max);
+					if !success		return null, status, ps.pool;
+					push_literal(*ps, r);
+				}
 		}
-		return do_finish(*ps), ps.status, ps.pool;
 	}
+	return do_finish(*ps), ps.status, ps.pool;
 }
 
 new_literal_string :: (pool: *Regexp_Pool, runes: [] Rune, flags: ParseFlags) -> *Regexp_Node {
@@ -1020,7 +1016,7 @@ to_string :: (re: *Regexp_Node) -> string {
 	}
 
 	append_literal :: (builder: *String_Builder, r: Rune, foldcase: bool) {
-		if r != 0 && r < 0x80 && index_of_char("(){}[]*+?|.^$\\", cast(u8)r) != -1 {
+		if r != 0 && r < 0x80 && find_index_from_left("(){}[]*+?|.^$\\", cast(u8)r) != -1 {
 			append(builder, #char "\\");
 			append(builder, cast(u8)r);
 		} else if (foldcase && #char "a" <= r && r <= #char "z") {
@@ -1046,7 +1042,7 @@ to_string :: (re: *Regexp_Node) -> string {
 	// Appends a rune for use in a character class to the string t.
 	append_cc_char :: (builder: *String_Builder, r: Rune) {
 		if 0x20 <= r && r <= 0x7E {
-			if index_of_char("[]^-\\", cast(u8)r) != -1 {
+			if find_index_from_left("[]^-\\", cast(u8)r) != -1 {
 				append(builder, "\\");
 			}
 			append(builder, cast(u8)r);
@@ -2511,8 +2507,8 @@ maybe_parse_unicode_group :: (s: *string, parse_flags: ParseFlags, cc: *CharClas
 		name = slice(seq, 2, len);
 	} else {
 		// Name is in braces. Look for closing }
-		end, found := index_of_char(<<s, #char "}");
-		if !found {
+		end := find_index_from_left(<<s, #char "}");
+		if end != -1 {
 			valid: bool;
 			valid, status = is_valid_utf8(seq);
 			if !valid		return status, .kParseError;
@@ -2579,7 +2575,7 @@ parse_cc_name :: (s: *string, parse_flags: ParseFlags, cc: *CharClass) -> status
 	if s.count < 2	|| (<<s)[0] != #char "[" || (<<s)[1] != #char ":"		return Status.{}, .kParseNothing;
 
 	// Look for closing :].
-	end := index_of_string(<<s, ":]");
+	end := find_index_from_left(<<s, ":]");
 
 	// If no closing :], then ignore.
 	if !end		return Status.{}, .kParseNothing;
@@ -2789,18 +2785,17 @@ parse_perl_flags :: (using ps: *ParseState, s: *string) -> Status, success: bool
 	if (t.count > 2 && t[0] == #char "P" && t[1] == #char "<") {
 		advance(*t, 2);
 		// Pull out name.
-		end, found := index_of_char(t, #char ">");
-		if !found {
+		end := find_index_from_left(t, #char ">");
+		if end == -1 {
 			valid: bool;
 			valid, status = is_valid_utf8(<<s);
 			if !valid		return status, false;
-
 			return make_status(.BadNamedCapture, <<s), false;
 		}
 
-		// t is "P<name>...", t[end] == '>'
-		capture := slice(<<s, 0, end + 3);
-		name := slice(t, 2, end - 2);
+		// t is "name>...", t[end] == '>'
+		capture := slice(<<s, 2, end + 3);
+		name := slice(t, 0, end);
 		valid, status := is_valid_utf8(name);
 		if !valid		return status, false;
 

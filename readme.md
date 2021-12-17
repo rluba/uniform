@@ -60,7 +60,7 @@ See [compile.jai](./compile.jai) and [match.jai](./match.jai) for additional opt
 Running the tests requires the [`stubborn` module](https://github.com/rluba/stubborn).
 It’s already included as a submodule, but don’t forget the usual git submodule shenanigans to fetch it.
 
-Compile with `<compiler> build.jai -- test`, then run the `test` binary.
+Compile with `<compiler> first.jai -- test`, then run the `test` binary.
 (The tests should run at compile-time but this is currently broken in the compiler.)
 
 ## Compiling the library

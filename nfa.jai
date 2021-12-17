@@ -13,11 +13,8 @@ match_nfa :: (prog: *Prog, text: string, ctx: string, ctx_offset: int, anchor_in
 	set_allocators(*pool);
 	#if REGEXP_DEBUG	pool.overwrite_memory = true;
 
-	new_context := context;
-	new_context.allocator = pool_allocator;
-	new_context.allocator_data = *pool;
-
-	push_context new_context {
+	{
+		push_allocator(pool_allocator_proc, *pool);
 		nfa.prog = prog;
 
 		init(*nfa.q0, prog.inst.count);

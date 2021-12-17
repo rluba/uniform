@@ -14,24 +14,6 @@ report_error :: (format: string, args: .. Any) {
     log(format, .. args);
 }
 
-// @ToDo: Move to a common utility module
-array_view :: inline (array: [] $T, index: int, count: int) -> [] T {
-    assert(index >= 0, "index = %", index);
-    assert(count >= 0, "count = %", count);
-    assert(index <= array.count, "index too large: % of %", index, array.count);
-    assert(index + count <= array.count, "index too large: % of %", index, array.count);
-	c: [] T = ---;
-    if index >= array.count {
-		c.data = null;
-		c.count = 0;
-		return c;
-	}
-
-    c.data = array.data + index;
-    c.count = count;
-    return c;
-}
-
 #scope_file
 
 #load "char_class.jai";
