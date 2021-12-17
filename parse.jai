@@ -2793,8 +2793,8 @@ parse_perl_flags :: (using ps: *ParseState, s: *string) -> Status, success: bool
 			return make_status(.BadNamedCapture, <<s), false;
 		}
 
-		// t is "P<name>...", t[end] == '>'
-		capture := slice(<<s, 0, end + 3);
+		// t is "name>...", t[end] == '>'
+		capture := slice(<<s, 2, end + 3);
 		name := slice(t, 0, end);
 		valid, status := is_valid_utf8(name);
 		if !valid		return status, false;
