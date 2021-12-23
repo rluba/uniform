@@ -13,7 +13,7 @@
 			#load "module.jai";
 			// #load "char_class.jai";
 			// #load "rune.jai";
-		END, "modules", args = test_args, run = false);
+		END, "modules", args = test_args, run = true);
 	} else {
 		build("module.jai", .NO_OUTPUT);
 	}
