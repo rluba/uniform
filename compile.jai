@@ -16,7 +16,7 @@ compile :: (pattern: string, parse_flags := ParseFlags.LikePerl) -> Regexp, succ
 	entire_regexp, status, pool := parse(pattern, parse_flags);
 
 	if status.code != .Success {
-		report_error("Could not parse regexp \"%\": % (%)", pattern, status.code, status.error_arg);
+		log_error("Could not parse regexp \"%\": % (%)", pattern, status.code, status.error_arg);
 		return regexp, false;
 	}
 	regexp.pool = pool;
@@ -29,7 +29,7 @@ compile :: (pattern: string, parse_flags := ParseFlags.LikePerl) -> Regexp, succ
 
 	regexp.prog = compile(regexp.suffix_regexp, *regexp.pool);
 	if !regexp.prog {
-		report_error("Could not compile regexp \"%\"", pattern);
+		log_error("Could not compile regexp \"%\"", pattern);
 		return regexp, false;
 	}
 	#if REGEXP_DEBUG	print("Compiled suffix:\n%\n", to_string(<<regexp.prog));

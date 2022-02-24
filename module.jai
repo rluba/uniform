@@ -10,10 +10,6 @@ Anchor :: enum {
 
 REGEXP_DEBUG :: false;
 
-report_error :: (format: string, args: .. Any) {
-    log(format, .. args);
-}
-
 #scope_file
 
 #load "char_class.jai";
