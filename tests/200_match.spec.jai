@@ -66,6 +66,8 @@ returns_all_matches_if_the_expression_matches_params :: Match_Args.[
 	.{".*", "something", .UNANCHORED, .["something"]},
 	.{"some(.*)thing", "something", .UNANCHORED, .["something", ""]},
 	.{"some(.*)thing", "some other thing", .UNANCHORED, .["some other thing", " other "]},
+	.{"beta", "xbxx", .UNANCHORED, .[]},
+	.{"beta", "bxxx", .UNANCHORED, .[]},
 ];
 
 returns_all_matches_if_the_expression_matches :: (args: Match_Args) {

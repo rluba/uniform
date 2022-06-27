@@ -1038,21 +1038,19 @@ prefix_accel_front_and_back :: (using prog: *Prog, text: string, pos: int) -> in
 	if text.count - pos < prefix_size {
 		return -1;
 	}
+
 	// Don't bother searching the last prefix_size_-1 bytes for prefix_front_.
 	// This also means that probing for prefix_back_ doesn't go out of bounds.
 	size := text.count - prefix_size + 1;
 
 	// @ToDo Port AVX2 fast path once jai has intrinsics/assembler
-	for pos..size - 1 {
-		result, found := index_of_char_2(text, cast(u8)prefix_front, it);
-		if !found	return -1;
 
-		if text[result + prefix_size - 1] == prefix_back {
-			return result;
+	for i: pos..size-1 {
+		if text[i] == prefix_front && text[i + prefix_size - 1] == prefix_back {
+			return i;
 		}
 	}
 
-	assert(false, "Should never be reached");
 	return -1;
 }
 
