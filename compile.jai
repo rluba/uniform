@@ -495,7 +495,7 @@ make_rune_cache_key :: (lo: u8, hi: u8, foldcase: bool, next: int) -> u64 {
 
 cached_rune_byte_suffix :: (using comp: *Compiler, lo: u8, hi: u8, foldcase: bool, next: int) -> int {
 	key := make_rune_cache_key(lo, hi, foldcase, next);
-	ptr := table_find_pointer(rune_cache, key);
+	ptr := table_find_pointer(*rune_cache, key);
 	if ptr	return <<ptr;
 	id := uncached_rune_byte_suffix(comp, lo, hi, foldcase, next);
 	table_add(*rune_cache, key, id);
@@ -508,7 +508,7 @@ is_cached_rune_byte_suffix :: (using comp: *Compiler, id: int) -> bool {
 	foldcase := get_foldcase(inst[id]);
 	next := get_out(inst[id]);
 	key := make_rune_cache_key(lo, hi, foldcase, next);
-	return table_find_pointer(rune_cache, key) != null;
+	return table_find_pointer(*rune_cache, key) != null;
 }
 
 add_suffix :: (using comp: *Compiler, id: int) {
