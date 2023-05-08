@@ -2788,8 +2788,7 @@ parse_perl_flags :: (using ps: *ParseState, s: *string) -> Status, success: bool
 		// Pull out name.
 		end := find_index_from_left(t, #char ">");
 		if end == -1 {
-			valid: bool;
-			valid, status = is_valid_utf8(<<s);
+			valid, status := is_valid_utf8(<<s);
 			if !valid		return status, false;
 			return make_status(.BadNamedCapture, <<s), false;
 		}
