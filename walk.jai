@@ -42,37 +42,6 @@ Walk :: struct (C: Type, T: Type) {
 }
 
 walk :: (ctx: C, re: *Regexp_Node, initial_value: T, w: Walk($C, $T)) -> T, stopped_early: bool {
-	assert(re != null, "Missing regexp");
-
-	stack: [..] Walk_State(T);
-	stack.allocator = __temporary_allocator;
-	array_add(*stack, walk_state(re, initial_value));
-	stopped_early := false;
-
-	while true {
-		t, early, done := do_visit(ctx, *stack, *w);
-		if early {
-			stopped_early = true;
-		}
-
-		if done {
-			// We've finished stack.top().
-			// Update next guy down.
-			pop(*stack);
-			if !stack.count		return t, stopped_early;
-			s := *stack[stack.count - 1];
-			if s.child_args.count {
-				s.child_args[s.n] = t;
-			}
-			s.n += 1;
-		}
-	}
-
-	// This will never be reached, but Jai complains otherwise
-	// @Cleanup: remove this once Jai is fixed
-	t: T;
-	return t, true;
-
 	do_visit :: (ctx: C, stack: *[..] Walk_State(T), w: *Walk(C, T)) -> T, stopped_early: bool, done: bool {
 		s := *(<<stack)[stack.count - 1];
 		if s.n == -1 {
@@ -106,5 +75,35 @@ walk :: (ctx: C, re: *Regexp_Node, initial_value: T, w: Walk($C, $T)) -> T, stop
 
 		return w.post_visit(ctx, s.re, s.parent_arg, s.pre_arg, s.child_args), false, true;
 	}
+	assert(re != null, "Missing regexp");
+
+	stack: [..] Walk_State(T);
+	stack.allocator = __temporary_allocator;
+	array_add(*stack, walk_state(re, initial_value));
+	stopped_early := false;
+
+	while true {
+		t, early, done := do_visit(ctx, *stack, *w);
+		if early {
+			stopped_early = true;
+		}
+
+		if done {
+			// We've finished stack.top().
+			// Update next guy down.
+			pop(*stack);
+			if !stack.count		return t, stopped_early;
+			s := *stack[stack.count - 1];
+			if s.child_args.count {
+				s.child_args[s.n] = t;
+			}
+			s.n += 1;
+		}
+	}
+
+	// This will never be reached, but Jai complains otherwise
+	// @Cleanup: remove this once Jai is fixed
+	t: T;
+	return t, true;
 }
 

@@ -2212,6 +2212,13 @@ hex_value :: (c: Rune) -> int, success: bool {
 // Sets *s to span the remainder of the string.
 // Sets *rp to the named character.
 parse_escape :: (s: *string, rune_max: s32) -> r: Rune, status: Status, success: bool {
+	bad_escape :: (begin: string, s: *string) -> Status {
+		status: Status;
+		status.code = .BadEscape;
+		status.error_arg = slice(begin, 0, begin.count - s.count);
+		return status;
+	}
+
 	assert(s.count && (<<s)[0] == #char "\\");
 
 	if s.count == 1 {
@@ -2339,13 +2346,6 @@ parse_escape :: (s: *string, rune_max: s32) -> r: Rune, status: Status, success:
 		// case #char "b";
 		//   *rp = #char "\b";
 		//   return true;
-	}
-
-	bad_escape :: (begin: string, s: *string) -> Status {
-		status: Status;
-		status.code = .BadEscape;
-		status.error_arg = slice(begin, 0, begin.count - s.count);
-		return status;
 	}
 }
 

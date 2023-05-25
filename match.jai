@@ -143,17 +143,18 @@ ascii_strcasecmp :: (a: string, b: string) -> int {
 
 
 compute_num_captures :: (re: *Regexp_Node) -> int {
-	num_captures := 0;
-
-	w := Walk(*int, *void).{pre_visit = count_pre_visit};
-	walk(*num_captures, re, null, w);
-
-	return num_captures;
-
 	count_pre_visit :: (num: *int, re: *Regexp_Node, v: *void) -> *void, bool {
 		if re.op == .Capture {
 			<<num += 1;
 		}
 		return null, false;
 	}
+
+	num_captures := 0;
+
+	w := Walk(*int, *void).{pre_visit = count_pre_visit};
+	walk(*num_captures, re, null, w);
+
+	return num_captures;
 }
+

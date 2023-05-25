@@ -72,11 +72,6 @@ simplify :: (re: *Regexp_Node, pool: *Regexp_Pool) -> *Regexp_Node {
 // occurrences of that literal into repeats of that literal. It also works for
 // char classes, any char and any byte.
 coalesce :: (using re: *Regexp_Node, pool: *Regexp_Pool) -> *Regexp_Node {
-	w := Walk(*Regexp_Pool, *Regexp_Node).{post_visit = coalesce_post};
-	result, stopped := walk(pool, re, null, w);
-	if stopped		return null;
-	return result;
-
 	coalesce_post :: (pool: *Regexp_Pool, re: *Regexp_Node, parent_arg: *Regexp_Node, pre_arg: *Regexp_Node, child_args: [..] *Regexp_Node) -> *Regexp_Node {
 		if re.subs.count == 0	return re;
 		if re.op != .Concat {
@@ -141,6 +136,11 @@ coalesce :: (using re: *Regexp_Node, pool: *Regexp_Pool) -> *Regexp_Node {
 		}
 		return nre;
 	}
+
+	w := Walk(*Regexp_Pool, *Regexp_Node).{post_visit = coalesce_post};
+	result, stopped := walk(pool, re, null, w);
+	if stopped		return null;
+	return result;
 }
 
 child_args_changed :: (re: *Regexp_Node, child_args: [] *Regexp_Node) -> bool {
@@ -187,6 +187,12 @@ can_coalesce :: (r1: *Regexp_Node, r2: *Regexp_Node) -> bool {
 }
 
 do_coalesce :: (pool: *Regexp_Pool, r1ptr: **Regexp_Node, r2ptr: **Regexp_Node) {
+	leave_empty :: (r1ptr: **Regexp_Node, r2ptr: **Regexp_Node, pool: *Regexp_Pool, nre: *Regexp_Node) {
+		// @ToDo, @Speed: Why don’t we set this to null instead of allocing a temporary new regexp?
+		<<r1ptr = new_regexp(pool, .EmptyMatch, .NoParseFlags);
+		<<r2ptr = nre;
+	}
+
 	r1 := <<r1ptr;
 	r2 := <<r2ptr;
 
@@ -267,20 +273,9 @@ do_coalesce :: (pool: *Regexp_Pool, r1ptr: **Regexp_Node, r2ptr: **Regexp_Node) 
 		case;
 			assert(false, "Unexpected r2.op: %", r2.op);
 	}
-
-	leave_empty :: (r1ptr: **Regexp_Node, r2ptr: **Regexp_Node, pool: *Regexp_Pool, nre: *Regexp_Node) {
-		// @ToDo, @Speed: Why don’t we set this to null instead of allocing a temporary new regexp?
-		<<r1ptr = new_regexp(pool, .EmptyMatch, .NoParseFlags);
-		<<r2ptr = nre;
-	}
 }
 
 simplify_coalesced :: (using re: *Regexp_Node, pool: *Regexp_Pool) -> *Regexp_Node {
-	w := Walk(*Regexp_Pool, *Regexp_Node).{pre_visit = simplify_pre, post_visit = simplify_post};
-	result, stopped := walk(pool, re, null, w);
-	if stopped		return null;
-	return result;
-
 	simplify_pre :: (pool: *Regexp_Pool, re: *Regexp_Node, parent_arg: *Regexp_Node) -> *Regexp_Node, stop: bool {
 		if (re.simple) {
 			return re, true;
@@ -376,6 +371,11 @@ simplify_coalesced :: (using re: *Regexp_Node, pool: *Regexp_Pool) -> *Regexp_No
 				return null;
 		}
 	}
+
+	w := Walk(*Regexp_Pool, *Regexp_Node).{pre_visit = simplify_pre, post_visit = simplify_post};
+	result, stopped := walk(pool, re, null, w);
+	if stopped		return null;
+	return result;
 }
 
 // Creates a concatenation of two Regexp_Node, consuming refs to re1 and re2.

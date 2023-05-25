@@ -753,6 +753,22 @@ flatten :: (using prog: *Prog) {
 }
 
 mark_successors :: (using prog: *Prog, reachable: *Sparse_Set, stk: *[..] int) -> rootmap: Sparse_Array(int), predmap: Sparse_Array(int), preds_list: [..] [..] int {
+	get_or_add_preds :: (preds_list: *[..] [..] int, predmap: *Sparse_Array(int), id: int) -> *[..] int {
+		preds: * [..] int;
+		if !contains(<<predmap, id) {
+			add_unchecked(predmap, id, preds_list.count);
+			array_reserve(preds_list, preds_list.count + 1);
+			memset(preds_list.data + preds_list.count, 0, size_of(type_of(preds_list[0])));
+			preds_list.count += 1;
+			preds = *(<<preds_list)[preds_list.count - 1];
+			preds.data = null;
+			preds.count = 0;
+		} else {
+			preds = *(<<preds_list)[get(<<predmap, id)];
+		}
+		return preds;
+	}
+
 	rootmap: Sparse_Array(int);
 	predmap: Sparse_Array(int);
 	init(*rootmap, inst.count);
@@ -811,22 +827,6 @@ mark_successors :: (using prog: *Prog, reachable: *Sparse_Set, stk: *[..] int) -
 	}
 
 	return rootmap, predmap, preds_list;
-
-	get_or_add_preds :: (preds_list: *[..] [..] int, predmap: *Sparse_Array(int), id: int) -> *[..] int {
-		preds: * [..] int;
-		if !contains(<<predmap, id) {
-			add_unchecked(predmap, id, preds_list.count);
-			array_reserve(preds_list, preds_list.count + 1);
-			memset(preds_list.data + preds_list.count, 0, size_of(type_of(preds_list[0])));
-			preds_list.count += 1;
-			preds = *(<<preds_list)[preds_list.count - 1];
-			preds.data = null;
-			preds.count = 0;
-		} else {
-			preds = *(<<preds_list)[get(<<predmap, id)];
-		}
-		return preds;
-	}
 }
 
 mark_dominator :: (using prog: *Prog, root: int, rootmap: *Sparse_Array(int), predmap: Sparse_Array(int), preds_list: [..] [..] int, reachable: *Sparse_Set, stk: *[..] int) {
@@ -941,6 +941,33 @@ emit_list :: (using prog: *Prog, root: int, rootmap: *Sparse_Array(int), flat: *
 // between instructions. Iterating backwards over [begin, end) is guaranteed to
 // identify the nearest conflict (if any) with only linear complexity.
 compute_hints :: (using prog: *Prog, flat: *[..] Inst, begin: int, end: int) {
+	recolor :: (splits: *Bit_Array, colors: *[256] int, lo_in: int, hi: int, first: *int, id: int) {
+		// Like ByteMapBuilder, we split at lo-1 and at hi.
+		lo := lo_in - 1;
+
+		if lo >= 0 && !(<<splits)[lo] {
+			set_bit(splits, lo);
+			next := find_next_set_bit(<<splits, lo + 1);
+			(<<colors)[lo] = (<<colors)[next];
+		}
+		if !(<<splits)[hi] {
+			set_bit(splits, hi);
+			next := find_next_set_bit(<<splits, hi + 1);
+			(<<colors)[hi] = (<<colors)[next];
+		}
+
+		c := lo + 1;
+		while c < 256 {
+			next := find_next_set_bit(<<splits, c);
+			// Ratchet backwards...
+			(<<first) = min(<<first, (<<colors)[next]);
+			// Recolor with id - because it's the new nearest conflict!
+			(<<colors)[next] = id;
+			if next == hi	break;
+			c = next+1;
+		}
+	}
+
 	splits: Bit_Array;
 	init_bit_array(*splits, 256);
 	colors: [256] int;
@@ -988,33 +1015,6 @@ compute_hints :: (using prog: *Prog, flat: *[..] Inst, begin: int, end: int) {
 		if first != end {
 			hint := cast(u16) min(first - id, 32767);
 			ip.hint_foldcase |= hint << 1;
-		}
-	}
-
-	recolor :: (splits: *Bit_Array, colors: *[256] int, lo_in: int, hi: int, first: *int, id: int) {
-		// Like ByteMapBuilder, we split at lo-1 and at hi.
-		lo := lo_in - 1;
-
-		if lo >= 0 && !(<<splits)[lo] {
-			set_bit(splits, lo);
-			next := find_next_set_bit(<<splits, lo + 1);
-			(<<colors)[lo] = (<<colors)[next];
-		}
-		if !(<<splits)[hi] {
-			set_bit(splits, hi);
-			next := find_next_set_bit(<<splits, hi + 1);
-			(<<colors)[hi] = (<<colors)[next];
-		}
-
-		c := lo + 1;
-		while c < 256 {
-			next := find_next_set_bit(<<splits, c);
-			// Ratchet backwards...
-			(<<first) = min(<<first, (<<colors)[next]);
-			// Recolor with id - because it's the new nearest conflict!
-			(<<colors)[next] = id;
-			if next == hi	break;
-			c = next+1;
 		}
 	}
 }
