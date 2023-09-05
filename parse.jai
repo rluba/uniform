@@ -795,14 +795,63 @@ new_repeat :: (pool: *Regexp_Pool, sub: *Regexp_Node, flags: ParseFlags, min: s1
 }
 
 to_string :: (re: *Regexp_Node) -> string {
-	builder: String_Builder;
-	defer free_buffers(*builder);
-	w := Walk(*String_Builder, Precedence).{pre_visit = to_string_pre, post_visit = to_string_post, copy = null};
-	// @ToDO @Cleanup This is a workaround for nulls not being respected in struct literals yet.
-	// Remove once the struct literal bug is fixed in jai
-	w.copy = null;
-	walk(*builder, re, .Toplevel, w);
-	return builder_to_string(*builder);
+	// Appends a rune for use in a character class to the string t.
+	append_cc_char :: (builder: *String_Builder, r: Rune) {
+		if 0x20 <= r && r <= 0x7E {
+			if find_index_from_left("[]^-\\", cast(u8)r) != -1 {
+				append(builder, "\\");
+			}
+			append(builder, cast(u8)r);
+		} else {
+			if r == {
+				case #char "\r";
+					append(builder, "\\r");
+					return;
+
+				case #char "\t";
+					append(builder, "\\t");
+					return;
+
+				case #char "\n";
+					append(builder, "\\n");
+					return;
+
+				case 0x0c;
+					append(builder, "\\f");
+					return;
+			}
+
+			if (r < 0x100) {
+				print_to_builder(builder, "\\x%", formatInt(r, base = 16, minimum_digits = 2));
+			} else {
+				print_to_builder(builder, "\\x{%}", formatInt(r, base = 16));
+			}
+		}
+	}
+
+	append_cc_range :: (builder: *String_Builder, lo: Rune, hi: Rune) {
+		append_cc_char(builder, lo);
+		// < would be enough here, but we want to print invalid ranges as well, just in case we have a bug somewhere
+		if lo != hi {
+			append(builder, #char "-");
+			append_cc_char(builder, hi);
+		}
+	}
+
+	append_literal :: (builder: *String_Builder, r: Rune, foldcase: bool) {
+		if r != 0 && r < 0x80 && find_index_from_left("(){}[]*+?|.^$\\", cast(u8)r) != -1 {
+			append(builder, #char "\\");
+			append(builder, cast(u8)r);
+		} else if (foldcase && #char "a" <= r && r <= #char "z") {
+			r -= #char "a" - #char "A";
+			append(builder, #char "[");
+			append(builder, cast(u8)r);
+			append(builder, cast(u8)r + #char "a" - #char "A");
+			append(builder, #char "]");
+		} else {
+			append_cc_range(builder, r, r);
+		}
+	}
 
 	// Appends ( if needed and passes new precedence to children.
 	to_string_pre :: (builder: *String_Builder, re: *Regexp_Node, prec: Precedence) -> Precedence, bool {
@@ -1016,63 +1065,14 @@ to_string :: (re: *Regexp_Node) -> string {
 		return .Atom;
 	}
 
-	append_literal :: (builder: *String_Builder, r: Rune, foldcase: bool) {
-		if r != 0 && r < 0x80 && find_index_from_left("(){}[]*+?|.^$\\", cast(u8)r) != -1 {
-			append(builder, #char "\\");
-			append(builder, cast(u8)r);
-		} else if (foldcase && #char "a" <= r && r <= #char "z") {
-			r -= #char "a" - #char "A";
-			append(builder, #char "[");
-			append(builder, cast(u8)r);
-			append(builder, cast(u8)r + #char "a" - #char "A");
-			append(builder, #char "]");
-		} else {
-			append_cc_range(builder, r, r);
-		}
-	}
-
-	append_cc_range :: (builder: *String_Builder, lo: Rune, hi: Rune) {
-		append_cc_char(builder, lo);
-		// < would be enough here, but we want to print invalid ranges as well, just in case we have a bug somewhere
-		if lo != hi {
-			append(builder, #char "-");
-			append_cc_char(builder, hi);
-		}
-	}
-
-	// Appends a rune for use in a character class to the string t.
-	append_cc_char :: (builder: *String_Builder, r: Rune) {
-		if 0x20 <= r && r <= 0x7E {
-			if find_index_from_left("[]^-\\", cast(u8)r) != -1 {
-				append(builder, "\\");
-			}
-			append(builder, cast(u8)r);
-		} else {
-			if r == {
-				case #char "\r";
-					append(builder, "\\r");
-					return;
-
-				case #char "\t";
-					append(builder, "\\t");
-					return;
-
-				case #char "\n";
-					append(builder, "\\n");
-					return;
-
-				case 0x0c;
-					append(builder, "\\f");
-					return;
-			}
-
-			if (r < 0x100) {
-				print_to_builder(builder, "\\x%", formatInt(r, base = 16, minimum_digits = 2));
-			} else {
-				print_to_builder(builder, "\\x{%}", formatInt(r, base = 16));
-			}
-		}
-	}
+	builder: String_Builder;
+	defer free_buffers(*builder);
+	w := Walk(*String_Builder, Precedence).{pre_visit = to_string_pre, post_visit = to_string_post, copy = null};
+	// @ToDO @Cleanup This is a workaround for nulls not being respected in struct literals yet.
+	// Remove once the struct literal bug is fixed in jai
+	w.copy = null;
+	walk(*builder, re, .Toplevel, w);
+	return builder_to_string(*builder);
 }
 
 #scope_file
