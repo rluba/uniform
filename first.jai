@@ -9,11 +9,13 @@
 		test_args.data += 1;
 		test_args.count -= 1;
 
-		build_tests("tests", #string END
-			#load "module.jai";
+        base_path := path_strip_filename(#filepath);
+
+		build_tests("tests", tprint(#string END
+			#load "%/module.jai";
 			// #load "char_class.jai";
 			// #load "rune.jai";
-		END, "modules", args = test_args, run = true);
+		END, base_path), get_absolute_path("./modules"), args = test_args, run = true);
 	} else {
 		build("module.jai", .NO_OUTPUT);
 	}
