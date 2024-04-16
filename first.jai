@@ -1,7 +1,8 @@
 #load "modules/stubborn/run.jai";
 
 #run {
-	args := get_build_options().compile_time_command_line;
+    options := get_build_options();
+	args := options.compile_time_command_line;
 
 	entrypoint := ifx args.count then args[0] else "";
 	if entrypoint == "test" {
@@ -11,7 +12,7 @@
 
         base_path := path_strip_filename(#filepath);
 
-		build_tests("tests", tprint(#string END
+		build_tests(options, "tests", tprint(#string END
 			#load "%/module.jai";
 			// #load "char_class.jai";
 			// #load "rune.jai";
