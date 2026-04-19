@@ -12,7 +12,7 @@ walk_state :: (re: *Regexp_Node, parent_arg: $T) -> Walk_State(T) {
 	s: Walk_State(T);
 	s.re = re;
 	s.parent_arg = parent_arg;
-	s.child_args.allocator = __temporary_allocator;
+    s.child_args.allocator = temp;
 	return s;
 }
 
@@ -78,7 +78,7 @@ walk :: (ctx: C, re: *Regexp_Node, initial_value: T, w: Walk($C, $T)) -> T, stop
 	assert(re != null, "Missing regexp");
 
 	stack: [..] Walk_State(T);
-	stack.allocator = __temporary_allocator;
+	stack.allocator = temp;
 	array_add(*stack, walk_state(re, initial_value));
 	stopped_early := false;
 

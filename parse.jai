@@ -261,7 +261,7 @@ regexp_equal :: (a: *Regexp_Node, b: *Regexp_Node) -> bool {
 	// be compared.  The regexps are only equal if
 	// all the pairs end up being equal.
 	stack: [..] *Regexp_Node;
-	stack.allocator = __temporary_allocator;
+    stack.allocator = temp;
 
 	a1 := a;
 	b1 := b;
